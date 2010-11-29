@@ -55,6 +55,7 @@ class PagerDuty(object):
         except urllib2.HTTPError, exc:
             if exc.code != 400:
                 raise
+            res = exc
             
         result = json.loads(res.read())
 
