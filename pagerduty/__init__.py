@@ -31,16 +31,16 @@ class PagerDuty(object):
         self.service_key = service_key
         self.api_endpoint = ("http", "https")[https] + "://events.pagerduty.com/generic/2010-04-15/create_event.json"
         self.timeout = timeout
-
+    
     def trigger(self, description, incident_key=None, details=None):
         return self._request("trigger", description=description, incident_key=incident_key, details=details)
-
+    
     def acknowledge(self, incident_key, description=None, details=None):
         return self._request("acknowledge", description=description, incident_key=incident_key, details=details)
-
+    
     def resolve(self, incident_key, description=None, details=None):
         return self._request("resolve", description=description, incident_key=incident_key, details=details)
-
+    
     def _request(self, event_type, **kwargs):
         event = {
             "service_key": self.service_key,
@@ -56,10 +56,12 @@ class PagerDuty(object):
             if exc.code != 400:
                 raise
             res = exc
-            
+        
         result = json.loads(res.read())
-
+        
         if result['status'] != "success":
             raise PagerDutyException(result['status'], result['message'], result['errors'])
-
-        return result['incident_key']
+        
+        # if result['warnings]: ...
+        
+        return result.get('incident_key')

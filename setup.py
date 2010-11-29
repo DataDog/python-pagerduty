@@ -20,6 +20,11 @@ setup(
     url = 'http://github.com/samuel/python-pagerduty',
     packages = ['pagerduty'],
     license = "BSD",
+    entry_points = {
+        "console_scripts": [
+            "pagerduty = pagerduty.command:main",
+        ],
+    },
     classifiers = [
         'Intended Audience :: Developers',
         'Operating System :: OS Independent',
