@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 import os
 execfile(os.path.join('pagerduty', 'version.py'))
@@ -18,7 +18,7 @@ setup(
     author = 'Samuel Stauffer',
     author_email = 'samuel@playhaven.com',
     url = 'http://github.com/samuel/python-pagerduty',
-    packages = ['pagerduty'],
+    packages = find_packages(),
     license = "BSD",
     entry_points = {
         "console_scripts": [
