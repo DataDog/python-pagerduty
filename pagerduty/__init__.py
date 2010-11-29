@@ -1,18 +1,45 @@
 #!/usr/bin/env python
 
+try:
+    import json
+except ImportError:
+    import simplejson as json
+import urllib2
+
+from pagerduty.version import *
+
+__version__ = VERSION
+
+class PagerDutyException(Exception):
+    def __init__(self, status, message, errors):
+        super(PagerDutyException, self).__init__(message)
+        self.msg = message
+        self.status = status
+        self.errors = errors
+    
+    def __repr__(self):
+        return "%s(%r, %r, %r)" % (self.__class__.__name__, self.status, self.msg, self.errors)
+    
+    def __str__(self):
+        txt = "%s: %s" % (self.status, self.msg)
+        if self.errors:
+            txt += "\n" + "\n".join("* %s" % x for x in self.errors)
+        return txt
+
 class PagerDuty(object):
-    def __init__(self, service_key, https=True):
+    def __init__(self, service_key, https=True, timeout=15):
         self.service_key = service_key
         self.api_endpoint = ("http", "https")[https] + "://events.pagerduty.com/generic/2010-04-15/create_event.json"
+        self.timeout = timeout
 
     def trigger(self, description, incident_key=None, details=None):
-        self._request("trigger", description=description, incident_key=incident_key, details=details)
+        return self._request("trigger", description=description, incident_key=incident_key, details=details)
 
     def acknowledge(self, incident_key, description=None, details=None):
-        self._request("acknowledge", description=description, incident_key=incident_key, details=details)
+        return self._request("acknowledge", description=description, incident_key=incident_key, details=details)
 
     def resolve(self, incident_key, description=None, details=None):
-        self._request("resolve", description=description, incident_key=incident_key, details=details)
+        return self._request("resolve", description=description, incident_key=incident_key, details=details)
 
     def _request(self, event_type, **kwargs):
         event = {
@@ -22,3 +49,16 @@ class PagerDuty(object):
         for k, v in kwargs.items():
             if v is not None:
                 event[k] = v
+        encoded_event = json.dumps(event)
+        try:
+            res = urllib2.urlopen(self.api_endpoint, encoded_event, self.timeout)
+        except urllib2.HTTPError, exc:
+            if exc.code != 400:
+                raise
+            
+        result = json.loads(res.read())
+
+        if result['status'] != "success":
+            raise PagerDutyException(result['status'], result['message'], result['errors'])
+
+        return result['incident_key']
