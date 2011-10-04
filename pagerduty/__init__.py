@@ -17,7 +17,7 @@ class SchedulesError(urllib2.HTTPError):
         urllib2.HTTPError.__init__(self, http_error.filename, http_error.code, http_error.msg, http_error.hdrs, http_error.fp)
 
         data = self.read()
-
+        
         j = json.loads(data)
         error = j['error']
         self.statuscode = error['code']
@@ -25,7 +25,7 @@ class SchedulesError(urllib2.HTTPError):
         self.errormessage = error['message']
 
     def __repr__(self):
-        return 'Pagerduty Schedules Error: HTTP {0} {1} returned with message, "{3}"' % (self.statuscode, self.statusdesc, self.errormessage)
+        return 'Pagerduty Schedules Error: HTTP {0} {1} returned with message, "{2}"'.format(self.statuscode, self.statusdesc, self.errormessage)
 
     def __str__(self):
         return self.__repr__()
@@ -93,13 +93,31 @@ class Schedules(object):
 
         self.base_url = 'https://{0}.pagerduty.com/api/v1/schedules/{1}/'.format(subdomain, schedule_id)
 
-    def entries(self, since, until):
-        """ Query schedule entries.
+    def entries(self, since, until, overflow=False):
+        """ Query schedule entries.  
+            The maximum range queryable at once is three months. Error raised if this is violated.
+
+            :type since: string
+            :param since: date in ISO 8601 format, the time element is optional 
+            (ie. '2011-05-06' is understood as at midnight ) 
+        
+            :type until: string
+            :param until: date in ISO 8601 format, the time element is optional 
+            (ie. '2011-05-06' is understood as at midnight )
+
+            :type overflow: boolean
+            :param overflow: if True on call schedules are returned the way they are entered
+                             if False only the overlaps of the on call schedules 
+                                with the time period between since and until are returned
         """
         params = {'since' : since, 'until' : until}
-        response = SchedulesRequest(self, 'entries', params).fetch()
-        for e in response.content['entries']:
-            print e['user']['name'], ' ', e['start'], ' ', e['end']
+        if overflow:
+            params.update({'overflow' : True})
+
+        request = SchedulesRequest(self, 'entries', params)
+        response = request.fetch()
+
+        return response.content['entries']
 
 
 class PagerDutyException(Exception):
