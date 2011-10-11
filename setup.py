@@ -12,7 +12,7 @@ except IOError:
 
 setup(
     name = 'pagerduty',
-    version = VERSION,
+    version = '0.3.0',
     description = 'Library for the PagerDuty service API',
     long_description = long_description,
     author = 'Samuel Stauffer',
