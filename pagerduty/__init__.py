@@ -16,13 +16,16 @@ class SchedulesError(urllib2.HTTPError):
     def __init__(self, http_error):
         urllib2.HTTPError.__init__(self, http_error.filename, http_error.code, http_error.msg, http_error.hdrs, http_error.fp)
 
-        data = self.read()
+        try:
+            data = self.read()
         
-        j = json.loads(data)
-        error = j['error']
-        self.statuscode = error['code']
-        self.statusdesc = ' | '.join(error['errors'])
-        self.errormessage = error['message']
+            j = json.loads(data)
+            error = j['error']
+            self.statuscode = error['code']
+            self.statusdesc = ' | '.join(error.get('errors', []))
+            self.errormessage = error['message']
+        except:
+            pass
 
     def __repr__(self):
         return 'Pagerduty Schedules Error: HTTP {0} {1} returned with message, "{2}"'.format(self.statuscode, self.statusdesc, self.errormessage)
