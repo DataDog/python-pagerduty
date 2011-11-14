@@ -178,3 +178,114 @@ class PagerDuty(object):
         # if result['warnings]: ...
         
         return result.get('incident_key')
+
+class IncidentsError(urllib2.HTTPError):
+    def __init__(self, http_error):
+        urllib2.HTTPError.__init__(self, http_error.filename, http_error.code, http_error.msg, http_error.hdrs, http_error.fp)
+
+        try:
+            data = self.read()
+        
+            j = json.loads(data)
+            error = j['error']
+            self.statuscode = error['code']
+            self.statusdesc = ' | '.join(error.get('errors', []))
+            self.errormessage = error['message']
+        except:
+            pass
+
+    def __repr__(self):
+        return 'Pagerduty Incidents Error: HTTP {0} {1} returned with message, "{2}"'.format(self.statuscode, self.statusdesc, self.errormessage)
+
+    def __str__(self):
+        return self.__repr__()
+
+class IncidentsRequest(urllib2.Request):
+    def __init__(self, connection, params):
+        """Representation of a Pagerduty Incidents API HTTP request.
+
+        :type connection: :class:`Incidents`
+        :param connection: Incidents connection object populated with a username, password and base URL
+
+        :type params: dict
+        :param params: Params to be sent with a GET request
+
+        """
+
+        encoded_params = urllib.urlencode(params)
+        url = connection.base_url + '?' + encoded_params
+        urllib2.Request.__init__(self, url)
+
+        # Add auth header
+        base64string = base64.encodestring('%s:%s' % (connection.username, connection.password)).replace('\n','')
+        self.add_header("Authorization", "Basic %s" % base64string)
+
+    def __repr__(self):
+        return 'IncidentsRequest: {0} {1}' % (self.get_method(), self.get_full_url())
+
+    def fetch(self):
+        """Execute the request."""
+        try:
+            response = urllib2.urlopen(self)
+        except urllib2.HTTPError, e:
+            raise IncidentsError(e)
+        else:
+            return IncidentsResponse(response)
+
+class IncidentsResponse(object):
+    def __init__(self, response):
+        """Representation of a Pagerduty Incidents API HTTP response."""
+        self.data = response.read()
+
+        self.headers = response.headers
+        self.content = json.loads(self.data)
+
+        if 'error' in self.content:
+            raise IncidentsError(self.content)
+
+    def __repr__(self):
+        return 'IncidentsResponse: {0}'.format(self.content.items())
+
+class Incidents(object):
+    """ Interface to Pagerduty Incident API.
+    """
+    def __init__(self, subdomain, username, password):
+        self.username = username
+        self.password = password
+        self.base_url = 'https://{0}.pagerduty.com/api/v1/incidents'.format(subdomain)
+
+    def _make_request(self, since, until, limit, offset):
+        params = {'since' : since, 'until' : until, 'limit' : limit, 'offset' : offset}
+
+        request = IncidentsRequest(self, params)
+        response = request.fetch()
+
+        return response.content['total'], response.content['incidents']
+
+    def all(self, since, until):
+        """ Query incidents.
+            The maximum range queryable at once is 100 incidents.
+            This function returns an iterator that handles pagination for you.
+
+            :type since: string
+            :param since: date in ISO 8601 format, the time element is optional 
+            (ie. '2011-05-06' is understood as at midnight ) 
+
+            :type until: string
+            :param until: date in ISO 8601 format, the time element is optional 
+            (ie. '2011-05-06' is understood as at midnight )
+        """
+        limit = 7
+
+        total, incidents = self._make_request(since, until, limit, 0)
+
+        for i in incidents:
+            yield i
+
+        if total > limit:
+            num_pages = (total / limit) + 1
+            for page in range(1, num_pages):
+                offset = page * limit
+                total, incidents = self._make_request(since, until, limit, offset)
+                for i in incidents:
+                    yield i
