@@ -275,7 +275,7 @@ class Incidents(object):
             :param until: date in ISO 8601 format, the time element is optional 
             (ie. '2011-05-06' is understood as at midnight )
         """
-        limit = 7
+        limit = 100
 
         total, incidents = self._make_request(since, until, limit, 0)
 
