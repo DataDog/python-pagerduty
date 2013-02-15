@@ -183,6 +183,10 @@ class IncidentsError(urllib2.HTTPError):
     def __init__(self, http_error):
         urllib2.HTTPError.__init__(self, http_error.filename, http_error.code, http_error.msg, http_error.hdrs, http_error.fp)
 
+        self.statuscode = http_error.code
+        self.statusdesc = http_error.msg
+        self.errormessage = ''
+
         try:
             data = self.read()
         
